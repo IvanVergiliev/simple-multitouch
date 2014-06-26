@@ -1,0 +1,10 @@
+html, body {
+  height: 100%;
+}
+
+#demo {
+  height: 97%;
+  width: 97%;
+  position: fixed;
+  margin: 0px;
+}
