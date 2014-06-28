@@ -4,7 +4,16 @@ var w = canvas.width;
 var h = canvas.height;
 
 var image = new Image;
+
+// Read more about canvas transformations here:
+// https://developer.mozilla.org/en-US/docs/Web/Guide/HTML/Canvas_tutorial/Transformations
+
 image.onload = function () {
+  // (0, 0) is a fixed point ( http://en.wikipedia.org/wiki/Fixed_point_(mathematics) )
+  // with respect to scaling and rotation.
+  // We're using this property here to position the image and canvas coordinate system
+  // in such a way that the center of the image is at (0, 0) to make sure that the center
+  // of the image stays fixed during rotation and scaling.
   ctx.translate(w / 2, h / 2);
   ctx.drawImage(image, -w / 4, -h / 4, w / 2, h / 2);
 };
@@ -18,53 +27,57 @@ var updateCanvas = function (deltaVector, scaleFactor, angle) {
   ctx.drawImage(image, -w / 4, -h / 4, w / 2, h / 2);
 };
 
-var Point = function (x, y) {
+// This type represents a vector that starts at the beginning of the coordinate system
+// and end at (x, y).
+// It can also be used to represent the point (x, y).
+var Vector = function (x, y) {
   this.x = x;
   this.y = y;
 };
 
-Point.prototype.add = function (p) {
-  return new Point(this.x + p.x, this.y + p.y);
+Vector.prototype.add = function (p) {
+  return new Vector(this.x + p.x, this.y + p.y);
 };
 
-Point.prototype.subtract = function (p) {
-  return new Point(this.x - p.x, this.y - p.y);
+Vector.prototype.subtract = function (p) {
+  return new Vector(this.x - p.x, this.y - p.y);
 };
 
-Point.prototype.scale = function (coef) {
-  return new Point(this.x * coef, this.y * coef);
+Vector.prototype.scale = function (coef) {
+  return new Vector(this.x * coef, this.y * coef);
 };
 
-Point.prototype.normSquared = function () {
+Vector.prototype.normSquared = function () {
   return this.x * this.x + this.y * this.y;
 };
 
-Point.prototype.norm = function () {
+Vector.prototype.norm = function () {
   return Math.sqrt(this.normSquared());
 };
 
-Point.fromTouch = function (touch) {
-  return new Point(touch.screenX, touch.screenY);
+Vector.fromTouch = function (touch) {
+  return new Vector(touch.screenX, touch.screenY);
 };
 
-Point.findCenter = function (p1, p2) {
+Vector.findCenter = function (p1, p2) {
   return p1.add(p2).scale(.5);
 };
 
-Point.distanceSquared = function (p1, p2) {
+Vector.distanceSquared = function (p1, p2) {
   return p1.subtract(p2).normSquared();
 };
 
-Point.distance = function (p1, p2) {
+Vector.distance = function (p1, p2) {
   return p1.subtract(p2).norm();
 };
 
-Point.crossProduct = function (p1, p2) {
+// Calculates the cross product ( http://en.wikipedia.org/wiki/Cross_product ) of two vectors.
+Vector.crossProduct = function (p1, p2) {
   return p1.x * p2.y - p1.y * p2.x;
 };
 
-var center = new Point(0, 0);
-var direction = new Point(0, 0);
+var center = new Vector(0, 0);
+var direction = new Vector(0, 0);
 var distance;
 
 canvas.addEventListener('touchstart', function (event) {
@@ -72,26 +85,30 @@ canvas.addEventListener('touchstart', function (event) {
     // Don't get too fancy.
     return;
   }
-  var p1 = Point.fromTouch(event.targetTouches[0]);
-  var p2 = Point.fromTouch(event.targetTouches[1]);
-  center = Point.findCenter(p1, p2);
+  var p1 = Vector.fromTouch(event.targetTouches[0]);
+  var p2 = Vector.fromTouch(event.targetTouches[1]);
+  center = Vector.findCenter(p1, p2);
   direction = p1.subtract(p2);
-  distance = Point.distance(p1, p2);
+  distance = Vector.distance(p1, p2);
 });
 
 canvas.addEventListener('touchmove', function (event) {
   if (event.targetTouches.length != 2) {
     return;
   }
-  var p1 = Point.fromTouch(event.targetTouches[0]);
-  var p2 = Point.fromTouch(event.targetTouches[1]);
-  var newCenter = Point.findCenter(p1, p2);
+  var p1 = Vector.fromTouch(event.targetTouches[0]);
+  var p2 = Vector.fromTouch(event.targetTouches[1]);
+  var newCenter = Vector.findCenter(p1, p2);
   var newDirection = p1.subtract(p2);
-  var newDistance = Point.distance(p1, p2);
+  var newDistance = Vector.distance(p1, p2);
 
   var deltaVector = newCenter.subtract(center);
   var scaleFactor = newDistance / distance;
-  var crossProduct = Point.crossProduct(direction, newDirection);
+  var crossProduct = Vector.crossProduct(direction, newDirection);
+  // We use the fact that cp(a, b) = ||a|| * ||b|| * sin(theta), where theta is the angle between
+  // vectors a and b, to find theta.
+  // This will not always give the correct result for any two vectors a and b, but
+  // should be enough for handling touch events.
   var normalizedCrossProduct = crossProduct / (direction.norm() * newDirection.norm());
   updateCanvas(deltaVector, scaleFactor, Math.asin(normalizedCrossProduct));
 
