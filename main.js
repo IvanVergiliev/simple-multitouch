@@ -98,19 +98,31 @@ canvas.addEventListener('touchmove', function (event) {
   }
   var p1 = Vector.fromTouch(event.targetTouches[0]);
   var p2 = Vector.fromTouch(event.targetTouches[1]);
-  var newCenter = Vector.findCenter(p1, p2);
-  var newDirection = p1.subtract(p2);
-  var newDistance = Vector.distance(p1, p2);
 
+  // Calculate the center of mass and the distance it has travelled from its previous position.
+  var newCenter = Vector.findCenter(p1, p2);
   var deltaVector = newCenter.subtract(center);
+
+  // Calculate the distance and how much larger it is than the previous distance.
+  var newDistance = Vector.distance(p1, p2);
   var scaleFactor = newDistance / distance;
+
+  // Finally, calculate the vector with endpoints at the fingers, and find the angle it has
+  // been rotated by.
+  // NOTE: Since the touches are not guaranteed to be in the same order in different events,
+  // for better portability you may need to match the touches via Touch.identifier
+  // ( https://developer.mozilla.org/en-US/docs/Web/API/Touch.identifier ) which is guaranteed
+  // to stay the same.
+  var newDirection = p1.subtract(p2);
   var crossProduct = Vector.crossProduct(direction, newDirection);
   // We use the fact that cp(a, b) = ||a|| * ||b|| * sin(theta), where theta is the angle between
   // vectors a and b, to find theta.
   // This will not always give the correct result for any two vectors a and b, but
   // should be enough for handling touch events.
   var normalizedCrossProduct = crossProduct / (direction.norm() * newDirection.norm());
-  updateCanvas(deltaVector, scaleFactor, Math.asin(normalizedCrossProduct));
+  var rotationAngle = Math.asin(normalizedCrossProduct);
+
+  updateCanvas(deltaVector, scaleFactor, rotationAngle);
 
   center = newCenter;
   direction = newDirection;
